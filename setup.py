@@ -9,7 +9,7 @@ setup(
     url = 'http://pamoller.com/MboxFilter.html',
     license = 'MIT',
     description = 'Filter and sort mails from mboxes for archiving and reporting',
-    long_description = open('README', 'r').read(),
+    long_description = open('README.rst', 'r').read(),
     py_modules = ['mboxfilter'],
     scripts = ['bin/mboxfilter.py'],
     requires = ["dateutil"],
