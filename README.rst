@@ -2,7 +2,7 @@
 mboxfilter
 ==========
 
-`mboxfilter <http://pamoller.com/mboxfilter.html>`_ is a Python class for filtering and sorting emails in mailboxes (mbox-format) by values of `header fields <http://tools.ietf.org/html/rfc5322#section-3.6>`_. You may find it useful for archiving and reporting. Basic filtering an sorting can be done by the `command <>`_ line tool mboxfilter, which comes with mboxfilter and acts as wrapper around the class. All emails send from Peter to Frank are grepped from a bunch of mailboxes easyly:
+`mboxfilter <http://pamoller.com/mboxfilter.html>`_ is a Python class for filtering and sorting emails in mailboxes (mbox-format) by values of `header fields <http://tools.ietf.org/html/rfc5322#section-3.6>`_. You may find it useful for archiving and reporting. Basic filtering an sorting can be done by the command line tool mboxfilter, which comes with mboxfilter and acts as wrapper around the class. All emails send from Peter to Frank are grepped from a bunch of mailboxes easyly:
 
 ::
 
