@@ -1,0 +1,7 @@
+include CHANGES
+include LICENSE
+include PKG-INFO
+include README
+include bin/mboxfilter
+include mboxfilter.py
+include test/test_mboxfilter.py

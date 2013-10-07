@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<article version="5.0" xml:lang="en">
+  <articleinfo>
+     <title>mboxfilter</title>
+    <cover role="spec">
+    <para>Name: mboxfilter</para>
+    <para>Language: Python (2.6, 2.7, 3)</para>
+    <para>Author: P. A. Möller, <olink targetdoc="http://pamoller.com">pamoller.com</olink></para>
+    <para>License: MIT (Open Source)</para>
+    <para>First Published: 09/2013</para>
+    <para>
+       <olink targetdoc="http://pamoller.com/mboxfilter.html">Home</olink>
+       <olink targetdoc="http://pypi.python.org/pypi/mboxfilterer/">Download</olink>
+       <olink targetdoc="https://githup.com/pamoller/mboxfilter">Sources</olink></para>      
+    </cover>
+    </articleinfo>
+    <para><olink targetdoc="http://pamoller.com/mboxfilter.html">mboxfilter</olink> is a Python class for filtering and sorting emails in mailboxes (mbox-format) by values of <olink targetdoc="http://tools.ietf.org/html/rfc5322#section-3.6">header fields</olink>. You may find it useful for archiving and reporting. Basic filtering an sorting can be done by the <olink targetptr="cmd">command</olink> line tool mboxfilter, which comes with mboxfilter and acts as wrapper around the class. All emails send from Peter to Frank are grepped from a bunch of mailboxes easyly:</para>
+<programlisting language="bash">$ mboxfilter --filter_from "peter@(?:work.com|home.org)" --filter_to frank@work.com peter2012.mbox peter2013.mbox</programlisting>
+<para>All filters accept regular expressions. In the example above they are matched to the values of the header fields From and To. An email passes a filter if every filter item is passed. The output is printed to stdout by default. To sort all emails sent from Peter by reciver and year is done by:</para>
+<programlisting language="bash">$ mboxfilter --filter_from "peter@home.org" --sort_to --sort_date %Y peter2012.mbox peter2013.mbox
+$ ls
+frank@home.org.2012.mbox
+frank@home.org.2013.mbox
+rosie@home.org.2012.mbox ...</programlisting>
+    <para>Sorting may produces different result set. Each result set is written to a own file. Note: An email wirtten to Frank and Rosie is added to two result sets - as shown above. Sorting by Date accepts a <olink targetdoc="http://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior">format string</olink> as argument. mboxfilter can also be used for archiving emails. All emails of Peter are archived by:</para>
+        <programlisting language="bash">$ mboxfilter --archive peter@home.org.mbox peter@work.com.mbox
+$ ls 
+2012.mbox
+2013.mbox
+index.sqlite3</programlisting>
+<para>Important header values of the emails are bundeled in a row and added to the index database index.sqlite3. The index revokes emails from being added twice. But the SQLite 3 database is also meant for querying by SQL.</para>
+<para>More complex tasks can be done by using the Python class. For finding all emails sent from Peter to Rosie (To, Cc or Bcc) is done by:</para>
+<programlisting language="python">#!/usr/bin/env python
+from mboxfilter import Filter
+import sys
+cached = []
+for header in ["To", "Cc", "Bcc"]:
+  f = Filter(caching=True, filters=[("From", sys.argv[0]), (header, sys.argv[1])])
+  f.filter(sys.argv[2])
+  cached = cached + f.cache
+res = Filter(selectors=[("Date", "%Y")])
+res.filter(cached) </programlisting>
+<section>
+<title>Class</title>
+<methodsynopsis>
+  <type>class</type>
+  <methodname>mboxfilter.Filter</methodname>
+  <methodparam>
+    <parameter>output</parameter>
+    <initializer>"./"</initializer>
+  </methodparam>
+  <methodparam>
+    <parameter>archive</parameter>
+    <initializer>False</initializer>
+  </methodparam>
+  <methodparam>
+  <parameter>indexing</parameter>
+  <initializer>False</initializer>
+  </methodparam>
+  <methodparam>
+   <parameter>filters</parameter>
+   <initializer>[]</initializer>
+  </methodparam>
+  <methodparam>
+   <parameter>selectors</parameter>
+   <initializer>[]</initializer>
+  </methodparam>
+  <methodparam>
+    <parameter>caching</parameter>
+    <initializer>False</initializer>
+  </methodparam>
+  <methodparam>
+    <parameter>separator</parameter>
+    <initializer>"."</initializer>
+  </methodparam>
+</methodsynopsis>
+<para>The Filter class can be used to instantiate own filters. The parameter filters takes a list of tuples, e.g.: <code>[("From", "peter@home.org"), ("To", "rosie@home.org")]</code>. The first item of the tuple references the name of a header field. It's value is matched against the regular expression within the second item. (The matches are kept, see below) An email passes a  filter if every filter item is passed (matched). That are all emails from Peter to Rosie in the preceding example.
+</para><para>The tuples, which are listed in the parameter selectors, sort the emails into different result sets. The selector tuples are structured like the filter tuples, but without a regular expressions. The second value is ignored, except for the Date filed. The Date field expects a <olink targetdoc="http://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior">format string</olink> to extract a approbative date string from the Date field. A list of selectors may look like: <code>[("To", None), ("Date", "%Y")]</code>. The selectors constructs for every email a set of sort keys. A sort key is a string, which consists of a sequence of key parts separated by the value of parameter separator. A key part is made from the header's value by the following rules. a)  From, To, Cc, Bcc: a list of email-addresses, b) Date: a user formatted representation of the date and c)  any other: the first 12 chars and the md5 value of the header value. Possible sort keys for the example above are: <code>rosie@home.org.2012</code> and <code>rosie@home.org.2013</code>.</para>
+<para>Note: Header fields like From, To, Cc or Bcc may create more than one sort key per email, e.g. emails sent to two recivers with <code>filters=[]</code> and <code>selector=[("To", None)]</code>: The list of recivers forms two result sets: rosie@home.org and frank@work.com.</para>
+<para>Note: If a header field was used as filter before, e.g. <code>filters=[('To', 'rosie@home.org')]</code> and <code>selectors=[('To', None)]</code>, the matches will be used to from the sort key instead of the list of recivers: <code>rosie@home.org</code> only.</para>
+<para>Without any selector the filtered emails are printed to stdout. Otherwise the sort keys are used as file names. The parameter output can be used to write the files into an existing directory. The parameter <code>indexing=True</code> creates the result set database in the file index.sqlite3. The Parameter <code>archive=True</code> is a shorthand for the parameter combination: <code>indexing=True</code> and <code>selectors=[("Date", "%Y")]</code>. It is useful for adding mails once in an archive. The parameter <code>caching=True</code> redirects the output to the class member cache. This setting disables  indexing and ignores any selector.</para>
+</section>
+<section>
+<title>Members</title>
+<fieldsynopsis>
+<varname>filtered</varname>
+<initializer>0</initializer>
+</fieldsynopsis>
+<para>Number of emails that has been filtered. </para>
+<fieldsynopsis>
+<varname>passed</varname>
+<initializer>"."</initializer>
+</fieldsynopsis>
+<para>Number of emails, that has passed the filters. </para>
+<fieldsynopsis>
+<varname>cache</varname>
+<initializer>[]</initializer>
+</fieldsynopsis>
+<para>List of passed emails, if parameter caching was set.</para>
+</section>
+<section><title>Methods</title>
+<methodsynopsis>
+  <methodname>filter_mbox</methodname>
+  <methodparam>
+    <parameter>obj</parameter>
+  </methodparam>
+</methodsynopsis>
+<para>filter_mbox apply all filters and selectors to every email in the referenced mailbox. The Parameter obj can be either an instance of the mailbox.mbox class or a path referring to a mailbox within the mbox format.</para>  
+<methodsynopsis>
+  <methodname>filter_mail</methodname>
+  <methodparam>
+    <parameter>mail</parameter>
+  </methodparam>
+</methodsynopsis>  
+<para>filter_mail apply all filters and selectors to the parameter mail, an instance of the mailbox.mboxMessage class.</para>
+</section>
+    <section id="cmd"><title>Cmd</title>
+    <cmdsynopsis>
+     <command>mboxfilter</command>
+     <arg choice="opt">--help</arg>
+     <arg choice="opt">--version</arg>
+     <arg choice="opt">--nostat</arg>
+     <arg choice="opt">--dir <replaceable>output</replaceable></arg>
+     <arg choice="opt">--unique</arg>
+     <arg choice="opt">--archive</arg>
+     <arg choice="opt">--filter_from <replaceable>regexp</replaceable></arg>
+     <arg choice="opt">--filter_to <replaceable>regexp</replaceable></arg>
+     <arg choice="opt">--filter_date <replaceable>regexp</replaceable></arg>
+     <arg choice="opt">--filter <replacable>header,regexp</replacable></arg>
+     <arg choice="opt">--sort_from</arg>
+     <arg choice="opt">--sort_to</arg>
+     <arg choice="opt">--sort_date <replaceable>format</replaceable></arg>
+     <arg choice="opt">--sort <replaceable>header,regexp</replaceable></arg>
+     <arg rep="repeat">mbox</arg>
+    </cmdsynopsis>
+  <para>For simple tasks the wrapper mboxfilter can be used as shown in the beginning. To use any header field for filtering or for sorting the options filter or sort are used. Note: the name of the header field and the regexp (Regular Expression) are separated by a "<code>,</code>". The option nostat suppresses the printing of a statistic to stderr.</para>
+    </section>
+ </article>

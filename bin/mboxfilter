@@ -1,0 +1,8 @@
+#!/usr/bin/env python
+"""
+Filter and sort mails from mboxes for archiving and reporting
+"""
+import mboxfilter
+
+if __name__ == "__main__":
+  mboxfilter.cli()
