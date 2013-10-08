@@ -1,0 +1,6 @@
+CHANGES
+README.rst
+mboxfilter.py
+setup.py
+bin/mboxfilter
+test/test_mboxfilter.py

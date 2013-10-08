@@ -14,7 +14,7 @@ import sqlite3
 import sys
 import traceback # todo remove
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 # Default encoding of emails:
 EMAIL_ENCO = "ISO-8859-15"
