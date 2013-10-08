@@ -22,3 +22,5 @@ var
 sdist
 develop-eggs
 .installed.cfg
+MANIFEST
+unit-tests
