@@ -5,3 +5,9 @@ Changelog for mboxfilter
 -----
 
 Initial commint
+
+
+0.1.3
+-----
+
+handle only real headers
