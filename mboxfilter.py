@@ -14,7 +14,7 @@ import sqlite3
 import sys
 import traceback # todo remove
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 # Default encoding of emails:
 EMAIL_ENCO = "ISO-8859-15"
@@ -63,6 +63,9 @@ class Filter:
         separates key parts
     """
     self.output = output or "."
+    if not os.path.isdir(self.output):
+      sys.stderr.write("directory: "+self.output+" does not exist\n")
+      sys.exit(1) 
     self.archive = archive
     self.filters = filters
     self.selectors = selectors
@@ -86,7 +89,8 @@ class Filter:
   def filter_mbox(self, obj):
     """ Filter a mailbox instance. """
     if isinstance(obj, str):
-      obj = mailbox.mbox(obj)
+      if os.path.isfile(obj):
+        obj = mailbox.mbox(obj)
     for mail in obj:
       self.filter_mail(mail)
     if isinstance(obj, mailbox.mbox):
@@ -151,7 +155,6 @@ class Filter:
 
   def resultset_output(self, handle, mail):
     """ Write mail to a result set. """
-    #print str(mail) todo: use this version with broken From?!
     genr = email.generator.Generator(handle, True, 0)
     genr.flatten(mail, True)	  
  
@@ -230,20 +233,20 @@ def header_values(header, mail):
   """ Split header into a list of items """
   if header not in mail.keys():
     sys.stderr.write("[NOTE] header: "+header+" not found\n")
-  value = header_decode(mail[header])
-  cheader = header.capitalize()
-  if cheader == "Date":
+    return []
+  else:
+    value = header_decode(mail[header])
+    if header == "Date":
+      return [value]
+    elif header in ["From", "Cc", "Bc", "To", "Sender", "Reply-to"]:
+      return value.split(",")
     return [value]
-  elif cheader in ["From", "Cc", "Bc", "To", "Sender", "Reply-to"]:
-    return value.split(",")
-  return [value]
 
 def header_value_formatted(key, form, value=""):
   """ Return formatted header values. """
-  ckey = key.capitalize()
-  if ckey in ["From", "Cc", "Bcc", "To", "Sender", "Reply-to"]:
+  if key in ["From", "Cc", "Bcc", "To", "Sender", "Reply-to"]:
     return header_email(value)
-  elif ckey == "Date":
+  elif key == "Date":
     return dateutil.parser.parse(value).strftime(form or DATE_FORMAT)
   # shorten sort key to 20 chars:
   if len(value or "") > 0:
