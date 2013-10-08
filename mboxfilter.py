@@ -159,7 +159,7 @@ class Filter:
     """ Generate the sort keys (result sets) for mail. """
     self.sort_keys = []
     for key, form in self.selectors:
-       # Sort by filter matches only (1:1):
+      # Sort by filter matches only (1:1):
       if key in self.filter_matches.keys():
         self.sort_keys_add(key, form, self.filter_matches[key])
       # Sort by all header parts (1:N):
@@ -308,7 +308,7 @@ def cli():
       elif opt == "--sort_from":
         selectors.append(("From", None))
       elif opt == "--sort_to":
-        sort_keys.append(("To", None))
+        selectors.append(("To", None))
       elif opt == "--sort_date":
         selectors.append(("Date", val))
       elif opt == "--sort":
