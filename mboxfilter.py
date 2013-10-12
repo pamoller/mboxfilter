@@ -14,12 +14,28 @@ import sqlite3
 import sys
 import traceback # todo remove
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 # Default encoding of emails:
 EMAIL_ENCO = "ISO-8859-15"
 # Deafult date format
 DATE_FORMAT = "%Y"
+
+class DirectoryNotExisting(Exception):
+  def __init__(self, name):
+    self.name = name
+  def __str__(self):
+    return "can't find direcotry: "+self.name
+
+class HeaderMissed(Exception):
+  def __init__(self, name):
+    self.name = name
+  def __str__(self):
+    return "header \""+self.name+"\" not found in mail"
+
+class EmailMissed(Exception):
+  def __str__(self):
+    return "can't find an email address"
 
 class Filter:
   # Output files to directory:
@@ -30,6 +46,8 @@ class Filter:
   passed = 0
   # Number of filtered mails:
   filtered = 0
+  # Failed while processing:
+  failed = 0
   # Do sorting by default:
   sort_date_default = DATE_FORMAT
   # Do indexing by default:
@@ -38,8 +56,14 @@ class Filter:
   filter_matches = []
   # Keep sort keys in list:
   sort_keys = []  
-  
-  def __init__(self, output=None, archive=False, indexing=False, filters=[], selectors=[], caching=False, separator="."):
+  # Keep passed mails, when caching:
+  passed_mails = []
+  # Keep failed mails, when caching:
+  failed_mails = []
+  # Path of Resultset of failed mails:
+  failures_path = None 
+   
+  def __init__(self, output=None, archive=False, indexing=False, filters=[], selectors=[], caching=False, separator=".", failures=None):
     """ Initialize a Filter object.
       output
         files are outputed into directory
@@ -61,11 +85,16 @@ class Filter:
       
       separator
         separates key parts
+        
+      nostat
+        supress statistics
+        
+      failures path
+        add mails, than can not be handeled (e.g. missing headers) to resultset path
     """
     self.output = output or "."
     if not os.path.isdir(self.output):
-      sys.stderr.write("directory: "+self.output+" does not exist\n")
-      sys.exit(1) 
+      raise DirectoryNotExisting(self.output)
     self.archive = archive
     self.filters = filters
     self.selectors = selectors
@@ -75,16 +104,10 @@ class Filter:
       self.indexing = True
       self.index_init()
     self.caching = caching
-    self.cache = []
+    # Backward compatibility:
+    self.cache = []#self.passed_mails
     self.sort_key_separator = separator
-
-  def error(self, exc, mail):
-    """ Handle errors. """
-    msg = "unkown error: " + str(exc[1]) 
-    if exc[0] is sqlite3.IntegrityError:
-      msg = 'can not add mail with Message-ID:"' + mail["Message-ID"]+ '" twice to result index'
-    #traceback.print_tb(exc[2])
-    sys.stderr.write(msg + "\n")
+    self.failures_path = failures
 
   def filter_mbox(self, obj):
     """ Filter a mailbox instance. """
@@ -105,9 +128,44 @@ class Filter:
           self.index_add(mail)
         self.resultset_add(mail)
         self.passed += 1
-    except:
-      self.error(sys.exc_info(), mail)
+    except sqlite3.IntegrityError as excp:
+	  #todo add to own resultset!
+      self.error("can't add mail twice to result index", mail)
+    except HeaderMissed as excp:
+      #todo add to own result set
+      self.error(str(excp), mail)
+    except EmailMissed as excp:
+      self.error(str(excp), mail)
+    except: # todo unkown error needed?
+      self.failed += 1
+      sys.stderr.write("unkonwn error - can't handle mail\n")
 
+  def error(self, msg, mail):
+    """ Output an error. """
+    self.failed += 1
+    sys.stderr.write("error: "+msg+" "+self.signature(mail)+"\n")
+    self.error_switch(mail)
+
+  #todo test
+  def signature(self, mail):
+    """ Output a readable signature for a mail. """
+    sig = ""
+    if "Message-ID" in mail.keys():
+      sig += "Message-ID: "+header_value_formatted("Message-ID", None, mail["Message-ID"])+" "
+    if "Date" in mail.keys():
+      sig += "Date: "+header_value_formatted("Date", DATE_FORMAT, mail["Date"]) 
+    return sig
+      
+  #todo test
+  def error_switch(self, mail):
+    """ Add mail to resultset of errors. """
+    if self.caching:
+      self.failed_mails.append(mail)
+    elif self.failures_path:
+      self.resultset_output(open(os.path.normpath(self.failures_path), "a"), mail)
+    #else: todo think about
+    #  self.resultset_output(sys.stderr, mail)
+  
   def filter_mail_pass(self, mail):
     """ Apply all filter rules. """
     self.filter_matches = {}
@@ -223,8 +281,11 @@ def header_decode(strg):
 
 def header_email(strg):
   """ Filter first email from string """
-  return re.search('([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4})', strg).group(1)
-
+  match = re.search('([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4})', strg)
+  if match == None:
+    raise EmailMissed()
+  return match.group(1)
+    
 def header_strip(strg, strip='[<>"]'):
   """ Remove encloseing brackets"""
   return re.sub(strip, '', strg or '')
@@ -232,15 +293,13 @@ def header_strip(strg, strip='[<>"]'):
 def header_values(header, mail):
   """ Split header into a list of items """
   if header not in mail.keys():
-    sys.stderr.write("[NOTE] header: "+header+" not found\n")
-    return []
-  else:
-    value = header_decode(mail[header])
-    if header == "Date":
-      return [value]
-    elif header in ["From", "Cc", "Bc", "To", "Sender", "Reply-to"]:
-      return value.split(",")
+    raise HeaderMissed(header)
+  value = header_decode(mail[header])
+  if header == "Date":
     return [value]
+  elif header in ["From", "Cc", "Bc", "To", "Sender", "Reply-to"]:
+    return value.split(",")
+  return [value]
 
 def header_value_formatted(key, form, value=""):
   """ Return formatted header values. """
@@ -249,9 +308,11 @@ def header_value_formatted(key, form, value=""):
   elif key == "Date":
     return dateutil.parser.parse(value).strftime(form or DATE_FORMAT)
   # shorten sort key to 20 chars:
-  if len(value or "") > 0:
+  if key == "Message-ID":
+    return header_strip(value)
+  if len(value or "") > 0: #todo think about
     return (value or "")[:12] + "." + md5_value(value or "") 
-  return ""
+  return value
 
 def python_decode(strg, enc):
   """ Decode strings for python < 3. """
@@ -265,29 +326,29 @@ def cli_protocol(val):
   if m:
     return (m.group(1), m.group(2) or "")
   raise "[Error] protocol error"
-    
-def cli_usage(excp=None):
-  if excp[0] is getopt.GetoptError:
-    sys.stderr.write("[ERROR] "+ str(excp[1]) + "\n\n")
+
+def cli_info():
   sys.stderr.write("mboxfilter v"+__version__+"\n")
+
+def cli_usage():
   sys.stderr.write("""Usage:
   mboxfilter [--help] [--version] [--dir output] [--unique] [--archive]
   [--filter_from regexp] [--filter_to regexp] [--filter_date regexp]
   [--filter header,regexp] [--sort_from] [--sort_to] [--sort_date format]
-  [--sort header,regexp] [--nostat]
+  [--sort header,regexp] [--errors path] [--nostat]
   mbox ...\n""")
-  sys.exit(1)
 	
 def cli():
   """ Invoke mboxfilter from cmd."""
   try:
-    opts, args = getopt.getopt(sys.argv[1:], None, ["dir=", "unique", "archive", "sort_from", "filter_from=", "sort_date=", "filter_date=", "filter_to=", "sort_to", "filter=", "sort=", "help", "nostat", "version"])
+    opts, args = getopt.getopt(sys.argv[1:], None, ["dir=", "unique", "archive", "sort_from", "filter_from=", "sort_date=", "filter_date=", "filter_to=", "sort_to", "filter=", "sort=", "help", "nostat", "version", "failures="])
     output = None
     selectors = []
     archive = False
     filters = []
     unique = False
     nostat = False
+    failures = None
     for opt, val in opts:
       val = python_decode(val, sys.stdin.encoding)
       if opt == "--dir":
@@ -298,8 +359,10 @@ def cli():
        unique = True
       elif opt == "--help":
         cli_usage()
+        sys.exit(0)
       elif opt == "--version":
-        cli_usage()
+        cli_info()
+        sys.exit(0)
       elif opt == "--filter_from":
         filters.append(("From", val))
       elif opt == "--filter_to":
@@ -318,10 +381,23 @@ def cli():
         selectors.append(cli_protocol(val))
       elif opt == "nostat":
         nostat = True
-    filt = Filter(output=output, archive=archive, indexing=unique, filters=filters, selectors=selectors)
+      elif opt == "failures":
+        failures = val
+    filt = Filter(output=output, archive=archive, indexing=unique, filters=filters, selectors=selectors, failures=failures)
     for mbox in args:
       filt.filter_mbox(mbox)
     if not nostat:
-      sys.stderr.write(str(filt.filtered) + " mails filtered, " + str(filt.passed) + " passed in " + str(filt.output) + "\n")
+      sys.stderr.write(str(filt.filtered) + " mails filtered, " + str(filt.passed) + " passed "+str(filt.failed)+" in " + str(filt.output) + "\n")
+  except getopt.GetoptError as excp:
+    sys.stderr.write(str(excp)+"\n\n")
+    cli_usage()
+    sys.exit(1)
+  except DirectoryNotExisting as excp:
+    sys.stderr.write(str(excp))
+    sys.exit(1)
+  except SystemExit:
+    pass
   except:
-    cli_usage(sys.exc_info())
+    traceback.print_tb(sys.exc_info()[2])
+    sys.stderr.write(str(sys.exc_info()[1]));
+    sys.exit(1)

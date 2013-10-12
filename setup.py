@@ -12,7 +12,6 @@ setup(
     long_description = open('README.rst', 'r').read(),
     py_modules = ['mboxfilter'],
     scripts = ['bin/mboxfilter'],
-    requires = ["dateutil"],
     install_requires = ["python-dateutil"],
     classifiers = [
      "Programming Language :: Python :: 2.6",
