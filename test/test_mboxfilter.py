@@ -49,6 +49,7 @@ ERROR_CANT_ADD_TWICE = "can't add mail twice to result index"
 class MboxFilterOutput(mboxfilter.Filter):
   """ Test classes redirect output to stack unit."""
   def __init__(self, output=None, archive=False, indexing=False, filters=[], selectors=[], caching=False, separator="."):
+    #print output, archive, indexing, filters, selectors, caching, separator see python error
     mboxfilter.Filter.__init__(self, output, archive, indexing, filters, selectors, caching, separator)
     self.unit = []
     self.unit_failures = []
@@ -80,25 +81,18 @@ class TestMboxFilter(unittest.TestCase):
     self.assertEqual(MAIL_1, mboxfilter.header_value_formatted('From', None, ADDR_1))
     self.assertEqual(MAIL_5, mboxfilter.header_value_formatted('From', None, ADDR_5))
 
-  #def test_header_decode(self):
-  #  fil = mboxfilter.Filter()                                                               
-  #  self.assertEqual(fil.header_strip(ADDR_2, '"') + ', '+ MAIL_3.decode('iso-8859-1'), fil.header_decode('''=?utf-8?Q?Friederich_Claus_Sch=C3=BC=C3=9Fler?= <fclaus@schuessler.de>,
-  #anna-lisa@meissner-jakobi.de'''))
-
   def test_archive(self):
     fil = MboxFilterOutput(output="unit-tests", archive=True)
     fil.filter_mbox(MBOX_1)
     m = mailbox.mbox(MBOX_1)	  
     self.check_results([(m[5], ERROR_CANT_ADD_TWICE), (m[6], ERROR_DATE_NOT_FOUND)], fil.unit_failures)
 
-
-  #def test_no_filter(self): todo fix 
-  #  fil = MboxFilterOutput()
-  #  fil.filter_mbox(MBOX_1)
-  #  m = mailbox.mbox(MBOX_1)
-  #  print len(m), fil.unit_failures[0][1]
-  #  self.check_results_defaults(m, fil.unit)
-  #  self.check_results_defaults([], fil.unit_failures)
+  def test_no_filter(self):
+    fil = MboxFilterOutput(selectors=[]) # python error!! 
+    fil.filter_mbox(MBOX_1)
+    m = mailbox.mbox(MBOX_1)
+    self.check_results_defaults(m, fil.unit)
+    self.check_results_defaults([], fil.unit_failures)
 
   def test_one_filter(self):
     fil = MboxFilterOutput(filters=[("From", PERS_1)])
@@ -156,15 +150,15 @@ class TestMboxFilter(unittest.TestCase):
     self.check_results([(m[1], MAIL_1+".Sun")], fil.unit)
     self.check_results([(m[6], ERROR_FROM_NOT_FOUND)], fil.unit_failures)
 
-  #def test_caching(self):
-  #  fil_1 = mboxfilter.Filter(caching=True, filters=[("From", PERS_1)])
-  ##  fil_2 = mboxfilter.Filter(caching=True, filters=[("To", PERS_1)])    
-  #  fil_3 = MboxFilterOutput(output="unit-tests", selectors=[("Date", "%Y")])
-  #  fil_1.filter_mbox(MBOX_1)
-  #  fil_2.filter_mbox(MBOX_1)
-  #  fil_3.filter_mbox(fil_1.cache + fil_2.cache)
-  #  m = mailbox.mbox(MBOX_1)
-  #  self.check_results([(m[0], "2013"), (m[1], "2013"), (m[2], "2013"), (m[3], "2013"), (m[4], "2013"), (m[5], "2013")], fil_3.unit)
+  def test_caching(self):
+    fil_1 = mboxfilter.Filter(caching=True, filters=[("From", PERS_1)])
+    fil_2 = mboxfilter.Filter(caching=True, filters=[("To", PERS_1)])    
+    fil_3 = MboxFilterOutput(output="unit-tests", selectors=[("Date", "%Y")])
+    fil_1.filter_mbox(MBOX_1)
+    fil_2.filter_mbox(MBOX_1)
+    fil_3.filter_mbox(fil_1.passed_mails + fil_2.passed_mails)
+    m = mailbox.mbox(MBOX_1)
+    self.check_results([(m[0], "2013"), (m[1], "2013"), (m[2], "2013"), (m[3], "2013"), (m[4], "2013"), (m[5], "2013")], fil_3.unit)
 
   """  
   def test_subject_sort(self):
@@ -173,6 +167,7 @@ class TestMboxFilter(unittest.TestCase):
     m = mailbox.mbox[MBOX_1]
     self.check_results([(m[0], MAIL_1), (m[1], MAIL_1), (m[1], MAIL_2), (m[2], MAIL_3), (m[3], MAIL_2), (m[4], MAIL_4), (m[5], MAIL_4)], fil.unit)
   """
+
   def check_results_defaults(self, shld, res, default=None):
     self.check_results([(value, default) for value in shld], res)
 

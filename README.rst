@@ -37,13 +37,13 @@ More complex tasks can be done by using the Python class. For finding all emails
     #!/usr/bin/env python
     from mboxfilter import Filter
     import sys
-    cached = []
+    passed = []
     for header in ["To", "Cc", "Bcc"]:
       f = Filter(caching=True, filters=[("From", sys.argv[0]), (header, sys.argv[1])])
       f.filter(sys.argv[2])
-      cached = cached + f.cache
+      passed = passed + f.passed_mails
     res = Filter(selectors=[("Date", "%Y")])
-    res.filter(cached) 
+    res.filter(passed) 
 
 =====
 Class
@@ -51,7 +51,7 @@ Class
 
 ::
 
-    class mboxfilter.Filter(output ::= "./", archive ::= False, indexing ::= False, filters ::= [], selectors ::= [], caching ::= False, separator ::= ".")
+    class mboxfilter.Filter(output ::= "./", archive ::= False, indexing ::= False, filters ::= [], selectors ::= [], caching ::= False, separator ::= ".", failures ::= None)
 
 The Filter class can be used to instantiate own filters. The parameter filters takes a list of tuples, e.g.: [("From", "peter@home.org"), ("To", "rosie@home.org")]. The first item of the tuple references the name of a header field. It's value is matched against the regular expression within the second item. (The matches are kept, see below) An email passes a  filter if every filter item is passed (matched). That are all emails from Peter to Rosie in the preceding example.
 
@@ -62,7 +62,9 @@ Note: Header fields like From, To, Cc or Bcc may create more than one sort key p
 
 Note: If a header field was used as filter before, e.g. filters=[('To', 'rosie@home.org')] and selectors=[('To', None)], the matches will be used to from the sort key instead of the list of recivers: rosie@home.org only.
 
-Without any selector the filtered emails are printed to stdout. Otherwise the sort keys are used as file names. The parameter output can be used to write the files into an existing directory. The parameter indexing=True creates the result set database in the file index.sqlite3. The Parameter archive=True is a shorthand for the parameter combination: indexing=True and selectors=[("Date", "%Y")]. It is useful for adding mails once in an archive. The parameter caching=True redirects the output to the class member cache. This setting disables  indexing and ignores any selector.
+Without any selector the filtered emails are printed to stdout. Otherwise the sort keys are used as file names. The parameter output can be used to write the files into an existing directory. The parameter indexing=True creates the result set database in the file index.sqlite3. The Parameter archive=True is a shorthand for the parameter combination: indexing=True and selectors=[("Date", "%Y")]. It is useful for adding mails once in an archive. The parameter caching=True redirects the output to the class members passed_mails and failed_mails. This setting disables  indexing and ignores any selector.
+
+If an error ocurs while filtering an email, e.g. the email obmits a header field, the email will appended to the file given in the failures parameter.
 
 =======
 Members
@@ -72,19 +74,31 @@ Members
 
     filtered ::= 0
 
-Number of emails that has been filtered. 
+Number of emails that have been filtered. 
 
 ::
 
-    passed ::= "."
+    passed ::= 0
 
-Number of emails, that has passed the filters. 
+Number of emails, that have passed the filters. 
 
 ::
 
-    cache ::= []
+    failed ::= 0
+
+Number of emails, that have failed while procession. 
+
+::
+
+    passed_mails ::= []
 
 List of passed emails, if parameter caching was set.
+
+::
+
+    failed_mails ::= []
+
+List of emails which failed, if parameter caching was set.
 
 =======
 Methods
@@ -108,6 +122,6 @@ Cmd
 
 ::
 
-    mboxfilter [--help] [--version] [--nostat] [--dir output] [--unique] [--archive] [--filter_from regexp] [--filter_to regexp] [--filter_date regexp] [--filter header,regexp] [--sort_from] [--sort_to] [--sort_date format] [--sort header,regexp] mbox ...
+    mboxfilter [--help] [--version] [--nostat] [--dir output] [--failures path] [--unique] [--archive] [--filter_from regexp] [--filter_to regexp] [--filter_date regexp] [--filter header,regexp] [--sort_from] [--sort_to] [--sort_date format] [--sort header,regexp] mbox ...
 
 For simple tasks the wrapper mboxfilter can be used as shown in the beginning. To use any header field for filtering or for sorting the options filter or sort are used. Note: the name of the header field and the regexp (Regular Expression) are separated by a ",". The option nostat suppresses the printing of a statistic to stderr.

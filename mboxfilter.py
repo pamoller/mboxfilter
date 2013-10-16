@@ -12,7 +12,7 @@ import os
 import re
 import sqlite3
 import sys
-import traceback # todo remove
+#import traceback # todo remove
 
 __version__ = "0.1.4"
 
@@ -34,8 +34,25 @@ class HeaderMissed(Exception):
     return "header \""+self.name+"\" not found in mail"
 
 class EmailMissed(Exception):
+  def __init__(self, name):
+    self.name = name
+    
   def __str__(self):
-    return "can't find an email address"
+    return "can't find an email address in: " + self.name
+
+class EmptyKeyPart(Exception):
+  def __str__(self):
+    return "empty key part"
+
+class RegularExpressionError(Exception):
+  def __init__(self, name):
+    self.name = name
+  def __str__(self):
+    return "regular expression \""+self.name+"\" invalid"
+
+class CLIProtocollError(Exception):
+  def __str__(self):
+    return "wrong synopsis in cli parameter, expect: Header,Regexp"
 
 class Filter:
   # Output files to directory:
@@ -61,8 +78,9 @@ class Filter:
   # Keep failed mails, when caching:
   failed_mails = []
   # Path of Resultset of failed mails:
-  failures_path = None 
-   
+  failure_path = None 
+  # Cache results - no output
+  caching = False
   def __init__(self, output=None, archive=False, indexing=False, filters=[], selectors=[], caching=False, separator=".", failures=None):
     """ Initialize a Filter object.
       output
@@ -89,7 +107,7 @@ class Filter:
       nostat
         supress statistics
         
-      failures path
+      failure path
         add mails, than can not be handeled (e.g. missing headers) to resultset path
     """
     self.output = output or "."
@@ -104,12 +122,12 @@ class Filter:
       self.indexing = True
       self.index_init()
     self.caching = caching
-    # Backward compatibility:
-    self.cache = []#self.passed_mails
+    # Backward compatibil	ity:
+    self.passed_mails = []
     self.sort_key_separator = separator
-    self.failures_path = failures
-
+    self.failure_path = failures
   def filter_mbox(self, obj):
+
     """ Filter a mailbox instance. """
     if isinstance(obj, str):
       if os.path.isfile(obj):
@@ -129,21 +147,14 @@ class Filter:
         self.resultset_add(mail)
         self.passed += 1
     except sqlite3.IntegrityError as excp:
-	  #todo add to own resultset!
       self.error("can't add mail twice to result index", mail)
-    except HeaderMissed as excp:
-      #todo add to own result set
-      self.error(str(excp), mail)
-    except EmailMissed as excp:
-      self.error(str(excp), mail)
-    except: # todo unkown error needed?
-      self.failed += 1
-      sys.stderr.write("unkonwn error - can't handle mail\n")
+    except:
+      self.error(str(sys.exc_info()[1]), mail)
 
   def error(self, msg, mail):
     """ Output an error. """
     self.failed += 1
-    sys.stderr.write("error: "+msg+" "+self.signature(mail)+"\n")
+    sys.stderr.write("error: "+msg+" in "+self.signature(mail)+"\n")
     self.error_switch(mail)
 
   #todo test
@@ -152,19 +163,16 @@ class Filter:
     sig = ""
     if "Message-ID" in mail.keys():
       sig += "Message-ID: "+header_value_formatted("Message-ID", None, mail["Message-ID"])+" "
-    if "Date" in mail.keys():
-      sig += "Date: "+header_value_formatted("Date", DATE_FORMAT, mail["Date"]) 
+    elif "Date" in mail.keys():
+        sig += "Date: "+mail["Date"] 
     return sig
       
-  #todo test
   def error_switch(self, mail):
     """ Add mail to resultset of errors. """
     if self.caching:
       self.failed_mails.append(mail)
-    elif self.failures_path:
-      self.resultset_output(open(os.path.normpath(self.failures_path), "a"), mail)
-    #else: todo think about
-    #  self.resultset_output(sys.stderr, mail)
+    elif self.failure_path:
+      self.resultset_output(open(os.path.normpath(self.failure_path), "a"), mail)
   
   def filter_mail_pass(self, mail):
     """ Apply all filter rules. """
@@ -181,12 +189,13 @@ class Filter:
            
   def filter_item_pass(self, header, regexp, strg):
     """ Apply a filter rule. """
-    if type(regexp) is not None and len(regexp) > 0:
+    try:
       if re.search(regexp, strg):
         self.filter_matches_add(header, strg)
         return True
       return False
-    return True
+    except:
+      raise RegularExpressionError(regexp)
 
   def filter_matches_add(self, key, value):
     """ Keep match of filter items."""
@@ -207,7 +216,7 @@ class Filter:
   def resultset_switch(self, handle, mail):
     """ Cache mail or write mail to a result set. """
     if self.caching:
-      self.cache.append(mail)
+      self.passed_mails.append(mail)
     else:
       self.resultset_output(handle, mail)
 
@@ -242,7 +251,7 @@ class Filter:
           for sort_key in self.sort_keys:
             new_keys.append(sort_key + self.sort_key_separator + key_value)
       else:
-       sys.stderr.write("[NOTE] empty key part\n")
+       raise EmptyKeyPart()
     # Reset to extended set of sort keys:
     self.sort_keys = new_keys
     
@@ -281,9 +290,9 @@ def header_decode(strg):
 
 def header_email(strg):
   """ Filter first email from string """
-  match = re.search('([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4})', strg)
+  match = re.search('([a-z0-9\._%+-]+@[a-z0-9}.-]+\.[a-z]{2,4})', strg)
   if match == None:
-    raise EmailMissed()
+    raise EmailMissed(strg)
   return match.group(1)
     
 def header_strip(strg, strip='[<>"]'):
@@ -311,7 +320,7 @@ def header_value_formatted(key, form, value=""):
   if key == "Message-ID":
     return header_strip(value)
   if len(value or "") > 0: #todo think about
-    return (value or "")[:12] + "." + md5_value(value or "") 
+    return (value or "")[:32] 
   return value
 
 def python_decode(strg, enc):
@@ -325,7 +334,7 @@ def cli_protocol(val):
   m = re.search("^([^,;$ ]+)(?:,(.*)|()$)", val)      
   if m:
     return (m.group(1), m.group(2) or "")
-  raise "[Error] protocol error"
+  raise CLIProtocollError()
 
 def cli_info():
   sys.stderr.write("mboxfilter v"+__version__+"\n")
@@ -335,7 +344,7 @@ def cli_usage():
   mboxfilter [--help] [--version] [--dir output] [--unique] [--archive]
   [--filter_from regexp] [--filter_to regexp] [--filter_date regexp]
   [--filter header,regexp] [--sort_from] [--sort_to] [--sort_date format]
-  [--sort header,regexp] [--errors path] [--nostat]
+  [--sort header,regexp] [--failures path] [--nostat]
   mbox ...\n""")
 	
 def cli():
@@ -379,15 +388,15 @@ def cli():
         selectors.append(("Date", val))
       elif opt == "--sort":
         selectors.append(cli_protocol(val))
-      elif opt == "nostat":
+      elif opt == "--nostat":
         nostat = True
-      elif opt == "failures":
+      elif opt == "--failures":
         failures = val
     filt = Filter(output=output, archive=archive, indexing=unique, filters=filters, selectors=selectors, failures=failures)
     for mbox in args:
       filt.filter_mbox(mbox)
     if not nostat:
-      sys.stderr.write(str(filt.filtered) + " mails filtered, " + str(filt.passed) + " passed "+str(filt.failed)+" in " + str(filt.output) + "\n")
+      sys.stderr.write(str(filt.filtered) + " mails filtered, " + str(filt.passed) + " passed "+str(filt.failed)+" failed\n")
   except getopt.GetoptError as excp:
     sys.stderr.write(str(excp)+"\n\n")
     cli_usage()
@@ -398,6 +407,6 @@ def cli():
   except SystemExit:
     pass
   except:
-    traceback.print_tb(sys.exc_info()[2])
+    #traceback.print_tb(sys.exc_info()[2])
     sys.stderr.write(str(sys.exc_info()[1]));
     sys.exit(1)

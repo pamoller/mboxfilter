@@ -4,10 +4,18 @@ Changelog for mboxfilter
 0.1.0
 -----
 
-Initial commint
+* Initial commint
 
 
 0.1.3
 -----
 
-handle only real headers
+* handle only real headers
+
+0.1.4
+-----
+
+* add exceptions
+* failed mails added to failure log
+* cache replaced by passed_mails (chile caching)
+* introduce failed_mails (while caching)

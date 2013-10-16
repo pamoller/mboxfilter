@@ -8,6 +8,7 @@
     <para>Author: P. A. Möller, <olink targetdoc="http://pamoller.com">pamoller.com</olink></para>
     <para>License: MIT (Open Source)</para>
     <para>First Published: 09/2013</para>
+    <para>Actual Version: 0.1.4</para>
     <para>
        <olink targetdoc="http://pamoller.com/mboxfilter.html">Home</olink>
        <olink targetdoc="http://pypi.python.org/pypi/mboxfilter/">Download</olink>
@@ -33,13 +34,13 @@ index.sqlite3</programlisting>
 <programlisting language="python">#!/usr/bin/env python
 from mboxfilter import Filter
 import sys
-cached = []
+passed = []
 for header in ["To", "Cc", "Bcc"]:
   f = Filter(caching=True, filters=[("From", sys.argv[0]), (header, sys.argv[1])])
   f.filter(sys.argv[2])
-  cached = cached + f.cache
+  passed = passed + f.passed_mails
 res = Filter(selectors=[("Date", "%Y")])
-res.filter(cached) </programlisting>
+res.filter(passed) </programlisting>
 <section>
 <title>Class</title>
 <methodsynopsis>
@@ -73,12 +74,17 @@ res.filter(cached) </programlisting>
     <parameter>separator</parameter>
     <initializer>"."</initializer>
   </methodparam>
+  <methodparam>
+    <parameter>failures</parameter>
+    <initializer>None</initializer>
+  </methodparam>
 </methodsynopsis>
 <para>The Filter class can be used to instantiate own filters. The parameter filters takes a list of tuples, e.g.: <code>[("From", "peter@home.org"), ("To", "rosie@home.org")]</code>. The first item of the tuple references the name of a header field. It's value is matched against the regular expression within the second item. (The matches are kept, see below) An email passes a  filter if every filter item is passed (matched). That are all emails from Peter to Rosie in the preceding example.
 </para><para>The tuples, which are listed in the parameter selectors, sort the emails into different result sets. The selector tuples are structured like the filter tuples, but without a regular expressions. The second value is ignored, except for the Date filed. The Date field expects a <olink targetdoc="http://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior">format string</olink> to extract a approbative date string from the Date field. A list of selectors may look like: <code>[("To", None), ("Date", "%Y")]</code>. The selectors constructs for every email a set of sort keys. A sort key is a string, which consists of a sequence of key parts separated by the value of parameter separator. A key part is made from the header's value by the following rules. a)  From, To, Cc, Bcc: a list of email-addresses, b) Date: a user formatted representation of the date and c)  any other: the first 12 chars and the md5 value of the header value. Possible sort keys for the example above are: <code>rosie@home.org.2012</code> and <code>rosie@home.org.2013</code>.</para>
 <para>Note: Header fields like From, To, Cc or Bcc may create more than one sort key per email, e.g. emails sent to two recivers with <code>filters=[]</code> and <code>selector=[("To", None)]</code>: The list of recivers forms two result sets: rosie@home.org and frank@work.com.</para>
 <para>Note: If a header field was used as filter before, e.g. <code>filters=[('To', 'rosie@home.org')]</code> and <code>selectors=[('To', None)]</code>, the matches will be used to from the sort key instead of the list of recivers: <code>rosie@home.org</code> only.</para>
-<para>Without any selector the filtered emails are printed to stdout. Otherwise the sort keys are used as file names. The parameter output can be used to write the files into an existing directory. The parameter <code>indexing=True</code> creates the result set database in the file index.sqlite3. The Parameter <code>archive=True</code> is a shorthand for the parameter combination: <code>indexing=True</code> and <code>selectors=[("Date", "%Y")]</code>. It is useful for adding mails once in an archive. The parameter <code>caching=True</code> redirects the output to the class member cache. This setting disables  indexing and ignores any selector.</para>
+<para>Without any selector the filtered emails are printed to stdout. Otherwise the sort keys are used as file names. The parameter output can be used to write the files into an existing directory. The parameter <code>indexing=True</code> creates the result set database in the file index.sqlite3. The Parameter <code>archive=True</code> is a shorthand for the parameter combination: <code>indexing=True</code> and <code>selectors=[("Date", "%Y")]</code>. It is useful for adding mails once in an archive. The parameter <code>caching=True</code> redirects the output to the class members passed_mails and failed_mails. This setting disables  indexing and ignores any selector.</para>
+<para>If an error ocurs while filtering an email, e.g. the email obmits a header field, the email will appended to the file given in the failures parameter.</para>
 </section>
 <section>
 <title>Members</title>
@@ -86,17 +92,27 @@ res.filter(cached) </programlisting>
 <varname>filtered</varname>
 <initializer>0</initializer>
 </fieldsynopsis>
-<para>Number of emails that has been filtered. </para>
+<para>Number of emails that have been filtered. </para>
 <fieldsynopsis>
 <varname>passed</varname>
-<initializer>"."</initializer>
+<initializer>0</initializer>
 </fieldsynopsis>
-<para>Number of emails, that has passed the filters. </para>
+<para>Number of emails, that have passed the filters. </para>
 <fieldsynopsis>
-<varname>cache</varname>
+<varname>failed</varname>
+<initializer>0</initializer>
+</fieldsynopsis>
+<para>Number of emails, that have failed while procession. </para>
+<fieldsynopsis>
+<varname>passed_mails</varname>
 <initializer>[]</initializer>
 </fieldsynopsis>
 <para>List of passed emails, if parameter caching was set.</para>
+<fieldsynopsis>
+<varname>failed_mails</varname>
+<initializer>[]</initializer>
+</fieldsynopsis>
+<para>List of emails which failed, if parameter caching was set.</para>
 </section>
 <section><title>Methods</title>
 <methodsynopsis>
@@ -121,6 +137,7 @@ res.filter(cached) </programlisting>
      <arg choice="opt">--version</arg>
      <arg choice="opt">--nostat</arg>
      <arg choice="opt">--dir <replaceable>output</replaceable></arg>
+     <arg choice="opt">--failures <replaceable>path</replaceable></arg>
      <arg choice="opt">--unique</arg>
      <arg choice="opt">--archive</arg>
      <arg choice="opt">--filter_from <replaceable>regexp</replaceable></arg>
