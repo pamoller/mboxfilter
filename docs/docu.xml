@@ -4,7 +4,7 @@
      <title>mboxfilter</title>
     <cover role="spec">
     <para>Name: mboxfilter</para>
-    <para>Language: Python (2.6, 2.7, 3)</para>
+    <para>Language: Python (2.6, 2.7)</para>
     <para>Author: P. A. Möller, <olink targetdoc="http://pamoller.com">pamoller.com</olink></para>
     <para>License: MIT (Open Source)</para>
     <para>First Published: 09/2013</para>
