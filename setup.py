@@ -14,6 +14,7 @@ setup(
     scripts = ['bin/mboxfilter'],
     install_requires = ["python-dateutil"],
     classifiers = [
+     "Programming Language :: Python :: 2",
      "Programming Language :: Python :: 2.6",
      "Programming Language :: Python :: 2.7",
      "License :: OSI Approved :: MIT License",

@@ -126,8 +126,8 @@ class Filter:
     self.passed_mails = []
     self.sort_key_separator = separator
     self.failure_path = failures
-  def filter_mbox(self, obj):
 
+  def filter_mbox(self, obj):
     """ Filter a mailbox instance. """
     if isinstance(obj, str):
       if os.path.isfile(obj):

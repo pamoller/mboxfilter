@@ -53,16 +53,15 @@ Class
 
     class mboxfilter.Filter(output ::= "./", archive ::= False, indexing ::= False, filters ::= [], selectors ::= [], caching ::= False, separator ::= ".", failures ::= None)
 
-The Filter class can be used to instantiate own filters. The parameter filters takes a list of tuples, e.g.: [("From", "peter@home.org"), ("To", "rosie@home.org")]. The first item of the tuple references the name of a header field. It's value is matched against the regular expression within the second item. (The matches are kept, see below) An email passes a  filter if every filter item is passed (matched). That are all emails from Peter to Rosie in the preceding example.
+The Filter class can be used to instantiate own filters. The parameter filters takes a list of tuples, e.g.: [("From", "peter@home.org"), ("To", "rosie@home.org")]. The first item of the tuple references the name of a header field. It's value is matched against the regular expression within the second item. (The matches are kept, see below) An email passes a filter if every filter item is passed (matched). That are all emails from Peter to Rosie in the preceding example.
 
-
-The tuples, which are listed in the parameter selectors, sort the emails into different result sets. The selector tuples are structured like the filter tuples, but without a regular expressions. The second value is ignored, except for the Date filed. The Date field expects a `format string <http://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior>`_ to extract a approbative date string from the Date field. A list of selectors may look like: [("To", None), ("Date", "%Y")]. The selectors constructs for every email a set of sort keys. A sort key is a string, which consists of a sequence of key parts separated by the value of parameter separator. A key part is made from the header's value by the following rules. a)  From, To, Cc, Bcc: a list of email-addresses, b) Date: a user formatted representation of the date and c)  any other: the first 12 chars and the md5 value of the header value. Possible sort keys for the example above are: rosie@home.org.2012 and rosie@home.org.2013.
+The tuples, which are listed in the parameter selectors, sort the emails into different result sets. The selector tuples are structured like the filter tuples, but without a regular expressions. The second value is ignored, except for the Date filed. The Date field expects a `format string <http://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior>`_ to extract a approbative date string from the Date field. A list of selectors may look like: [("To", None), ("Date", "%Y")]. The selectors constructs for every email a set of sort keys. A sort key is a string, which consists of a sequence of key parts separated by the value of parameter separator. A key part is made from the header's value by the following rules. a) From, To, Cc, Bcc: a list of email-addresses, b) Date: a user formatted representation of the date and c) any other: the first 12 chars and the md5 value of the header value. Possible sort keys for the example above are: rosie@home.org.2012 and rosie@home.org.2013.
 
 Note: Header fields like From, To, Cc or Bcc may create more than one sort key per email, e.g. emails sent to two recivers with filters=[] and selector=[("To", None)]: The list of recivers forms two result sets: rosie@home.org and frank@work.com.
 
 Note: If a header field was used as filter before, e.g. filters=[('To', 'rosie@home.org')] and selectors=[('To', None)], the matches will be used to from the sort key instead of the list of recivers: rosie@home.org only.
 
-Without any selector the filtered emails are printed to stdout. Otherwise the sort keys are used as file names. The parameter output can be used to write the files into an existing directory. The parameter indexing=True creates the result set database in the file index.sqlite3. The Parameter archive=True is a shorthand for the parameter combination: indexing=True and selectors=[("Date", "%Y")]. It is useful for adding mails once in an archive. The parameter caching=True redirects the output to the class members passed_mails and failed_mails. This setting disables  indexing and ignores any selector.
+Without any selector the filtered emails are printed to stdout. Otherwise the sort keys are used as file names. The parameter output can be used to write the files into an existing directory. The parameter indexing=True creates the result set database in the file index.sqlite3. The Parameter archive=True is a shorthand for the parameter combination: indexing=True and selectors=[("Date", "%Y")]. It is useful for adding mails once in an archive. The parameter caching=True redirects the output to the class members passed_mails and failed_mails. This setting disables indexing and ignores any selector.
 
 If an error ocurs while filtering an email, e.g. the email obmits a header field, the email will appended to the file given in the failures parameter.
 
@@ -74,19 +73,19 @@ Members
 
     filtered ::= 0
 
-Number of emails that have been filtered. 
+Number of emails that have been filtered.
 
 ::
 
     passed ::= 0
 
-Number of emails, that have passed the filters. 
+Number of emails, that have passed the filters.
 
 ::
 
     failed ::= 0
 
-Number of emails, that have failed while procession. 
+Number of emails, that have failed while procession.
 
 ::
 
