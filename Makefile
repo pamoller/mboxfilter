@@ -10,7 +10,7 @@ register: regress
 	python setup.py register
 	
 regress:
-	python test/test_mboxfilter.py
+	cd test && python test_mboxfilter.py
 
 upload: regress
 	python setup.py upload sdist

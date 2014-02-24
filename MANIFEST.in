@@ -4,4 +4,4 @@ include PKG-INFO
 include README.rst
 include bin/mboxfilter
 include mboxfilter.py
-include test/test_mboxfilter.py
+include test/test*
