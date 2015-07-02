@@ -45,6 +45,8 @@ DEFAULT_MAXLEN = 32
 DEFAULT_QUIET = False
 # Separate key parts by char (default):
 DEFAULT_SEPARATOR = "."
+# Or logic for filter
+DEFAULT_FILTER_OR_LOGIC = False
 
 class FilterBaseException(Exception):
 	mesg=""
@@ -107,7 +109,7 @@ class Filter:
 	sort_date_default = DEFAULT_FORMAT
 	# Keep sort keys in list:
 	sort_keys = []  
-	def __init__(self, output=DEFAULT_OUTPUT, archive=DEFAULT_ARCHIVE, indexing=DEFAULT_INDEX, filters=[], selectors=[], caching=DEFAULT_CACHEING, separator=DEFAULT_SEPARATOR, failures=DEFAULT_FAILURES, export_payload=DEFAULT_EXPORT, reduce_payload=DEFAULT_REDUCE, payload_exportpath=None, quiet=DEFAULT_QUIET):
+	def __init__(self, output=DEFAULT_OUTPUT, archive=DEFAULT_ARCHIVE, indexing=DEFAULT_INDEX, filters=[], filter_or_logic=DEFAULT_FILTER_OR_LOGIC, selectors=[], caching=DEFAULT_CACHEING, separator=DEFAULT_SEPARATOR, failures=DEFAULT_FAILURES, export_payload=DEFAULT_EXPORT, reduce_payload=DEFAULT_REDUCE, payload_exportpath=None, quiet=DEFAULT_QUIET):
 		""" Initialize a Filter object.
 			archive
 				Archives emails. Same as indexing=True and selectors=[("Date", "Y")] (default False)
@@ -181,6 +183,8 @@ class Filter:
 			self.payload_exportpath = self.output
 		# Display errors
 		self.quiet = quiet
+		# from or to filter
+		self.filter_or_logic = filter_or_logic
 
 	def error(self, msg, mail):
 		""" Output an error. """
@@ -248,8 +252,12 @@ class Filter:
 			for header_value in header_values(header, mail):
 				# True if any header part is true:  
 				inner_boolean |= self.filter_item_pass(header, regexp, header_value)
+			# True if any filter items are true:
+			if self.filter_or_logic:
+				boolean |= inner_boolean
 			# True if all filter items are true:
-			boolean &= inner_boolean
+			else:
+				boolean &= inner_boolean
 		return boolean
 				 
 	def filter_item_pass(self, header, regexp, strg):
@@ -494,6 +502,8 @@ def cli():
 				archive = True
 			elif opt == "--unique":
 				unique = True
+			elif opt == "--filter_or_logic":
+				filter_or_logic = True
 			elif opt == "--help":
 				cli_usage()
 				sys.exit(0)
@@ -526,7 +536,7 @@ def cli():
 				exportpath = val
 			elif opt == "--reduce":
 				reduce = True
-		filt = Filter(output=output, archive=archive, indexing=unique, filters=filters, selectors=selectors, failures=failures, export_payload=export, payload_exportpath=exportpath, reduce_payload=reduce, quiet=quiet)
+		filt = Filter(output=output, archive=archive, indexing=unique, filters=filters, filter_or_logic=filter_or_logic, selectors=selectors, failures=failures, export_payload=export, payload_exportpath=exportpath, reduce_payload=reduce, quiet=quiet)
 		for mbox in args:
 			filt.filter_mbox(mbox)
 		if not quiet:
