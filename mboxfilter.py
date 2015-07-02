@@ -11,7 +11,7 @@ import re
 import sqlite3
 import sys
 import time
-#import traceback # todo remove
+import traceback # todo remove
 
 # Actual version:
 __version__ = "0.1.6"
@@ -247,6 +247,8 @@ class Filter:
 		""" Apply all filters. """
 		self.filter_matches = {}
 		boolean = True
+		if self.filter_or_logic:
+				boolean = False
 		for header, regexp in self.filters:
 			inner_boolean = False
 			for header_value in header_values(header, mail):
