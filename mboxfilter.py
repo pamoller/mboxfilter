@@ -11,7 +11,7 @@ import re
 import sqlite3
 import sys
 import time
-import traceback # todo remove
+#import traceback # todo remove
 
 # Actual version:
 __version__ = "0.1.6"
