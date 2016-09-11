@@ -61,7 +61,7 @@ class FilterException(FilterBaseException):
 		return self.mesg %self.value
 
 class DirectoryNotExisting(FilterException):
-	mesg = "direcotry not found: %s"
+	mesg = "directory not found: %s"
 
 class HeaderMissed(FilterException):
 	mesg = "header not found: %s"
